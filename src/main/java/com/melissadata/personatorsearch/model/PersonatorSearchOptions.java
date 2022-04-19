@@ -1,4 +1,4 @@
-package melissadata.personatorsearch.model;
+package com.melissadata.personatorsearch.model;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;

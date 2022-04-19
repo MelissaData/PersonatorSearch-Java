@@ -1,16 +1,22 @@
-package melissadata.personatorsearch.model;
-
-import org.apache.sling.commons.json.JSONObject;
+package com.melissadata.personatorsearch.model;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class PersonatorSearchTransaction {
 
@@ -42,102 +48,83 @@ public class PersonatorSearchTransaction {
 
     public String processTransaction(String request) {
         String response = "";
-        URI uri;
-        URL url;
         try {
-            uri = new URI(request);
-            url = new URL(uri.toURL().toString());
+            URL url = new URL(request);
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(url.openStream()));
+            String responseBody = in.lines().collect(Collectors.joining());
+            response = format.equals("XML")
+                ? getPrettyXML(responseBody)
+                : getPrettyJSON(responseBody);
 
-            HttpURLConnection urlConn = (HttpURLConnection)(url.openConnection());
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(urlConn.getInputStream()));
-
-            StringReader reader;
-            StringWriter writer = new StringWriter();
-            StringBuilder jsonResponse = new StringBuilder();
-            String inputLine = "";
-
-            if (format.equals("XML"))
-            {
-                String xmlLine = "";
-                String xmlString = "";
-
-                while((xmlLine = in.readLine()) != null) {
-                    xmlString += xmlLine + "\n";
-                }
-
-                TransformerFactory tf = TransformerFactory.newInstance();
-                Transformer t = tf.newTransformer();
-                t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "10");
-                t.setOutputProperty(OutputKeys.INDENT, "yes");
-
-                reader = new StringReader(xmlString);
-                try {
-                    t.transform(new javax.xml.transform.stream.StreamSource(reader), new javax.xml.transform.stream.StreamResult(writer));
-                } catch (TransformerException e) {
-                    e.printStackTrace();
-                }
-                response = writer.toString();
-
-            } else {
-                while ((inputLine = in.readLine()) != null) {
-                    jsonResponse.append(inputLine);
-                }
-                @SuppressWarnings("deprecation")
-                JSONObject test = new JSONObject(jsonResponse.toString());
-                response = test.toString(10);
-
-            }
         } catch (Exception e){
             System.out.println("Error sending request: \n" + e);
         }
         return response;
     }
 
-    public String generateRequestString() {
-        String request = "";
-        request = endpoint;
-        request += "&id=" + getIdentNumber();
-        request += "&opt=" + options.generateOptionString();
-        request += "&cols=" + getColumns();
+    private String getPrettyJSON(String json) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonObject responseObject = gson.fromJson(json, JsonObject.class);
+        return gson.toJson(responseObject);
+    }
+
+    private String getPrettyXML(String xml) {
+        String prettyXML = "";
         try {
-            if(!getFullName().equals(""))
-                request += "&full=" + URLEncoder.encode(getFullName(), "UTF-8");
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer t = tf.newTransformer();
+            String indentSize = "{http://xml.apache.org/xslt}indent-amount";
+            t.setOutputProperty(indentSize, "2");
+            t.setOutputProperty(OutputKeys.INDENT, "yes");
+            Writer writer = new StringWriter();
+            t.transform(new StreamSource(new StringReader(xml)),
+                        new StreamResult(writer));
+            prettyXML = writer.toString();
+        } catch (TransformerException e) {
+            e.printStackTrace();
+        }
+        return prettyXML;
+    }
 
-            if(!getFirstName().equals(""))
-                request += "&first=" + URLEncoder.encode(getFirstName(), "UTF-8");
+    public String generateRequestString() {
+        StringBuilder sb = new StringBuilder();
 
-            if(!getLastName().equals(""))
-                request += "&last=" + URLEncoder.encode(getLastName(), "UTF-8");
+        sb.append(endpoint)
+            .append("&id=" + getIdentNumber())
+            .append(options.generateOptionString())
+            .append("&cols=" + getColumns())
 
-            if(!getPhoneNumber().equals(""))
-                request += "&phone=" + URLEncoder.encode(getPhoneNumber(), "UTF-8");
+            .append(generateRequestParam("full", getFullName()))
+            .append(generateRequestParam("first", getFirstName()))
+            .append(generateRequestParam("last", getLastName()))
+            .append(generateRequestParam("phone", getPhoneNumber()))
+            .append(generateRequestParam("email", getEmailAddress()))
+            .append(generateRequestParam("a1", getAddressLine1()))
+            .append(generateRequestParam("city", getCity()))
+            .append(generateRequestParam("state", getState()))
+            .append(generateRequestParam("postal", getPostalCode()))
 
-            if(!getEmailAddress().equals(""))
-                request += "&email=" + URLEncoder.encode(getEmailAddress(), "UTF-8");
+            .append(generateRequestParam("format", getFormat()));
 
-            if(!getAddressLine1().equals(""))
-                request += "&a1=" + URLEncoder.encode(getAddressLine1(), "UTF-8");
+        return sb.toString();
+    }
 
-            if(!getCity().equals(""))
-                request += "&city=" + URLEncoder.encode(getCity(), "UTF-8");
-
-            if(!getState().equals(""))
-                request += "&state=" + URLEncoder.encode(getState(), "UTF-8");
-
-            if(!getPostalCode().equals(""))
-                request += "&postal=" + URLEncoder.encode(getPostalCode(), "UTF-8");
-
-
+    private String generateRequestParam(String arg, String value) {
+        String encodedValue = "";
+        try {
+            encodedValue = URLEncoder.encode(value, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            System.out.println("Unsupported Encoding Exception: " +e);
+            System.out.println("Unsupported Encoding Exception: " + e);
         }
 
-        if(!getFormat().equals(""))
-            request += "&format=" + getFormat();
+        if(!encodedValue.equals("")) {
+            return "&" + arg + "=" + encodedValue;
+        }
 
-        return request;
+        return "";
     }
+
     public PersonatorSearchOptions getOptions() {
         return options;
     }
@@ -145,40 +132,19 @@ public class PersonatorSearchTransaction {
     public void setOptions(PersonatorSearchOptions options) {
         this.options = options;
     }
+
     private String getColumns() {
-        String columnString = "";
-        if(isSelectAllColumns()){
-            columnString += "grpAll";
-        } else {
-            if (isColumnPreviousAddress())
-                columnString += "PreviousAddress";
 
-            if (isColumnPhone() && columnString.equals(""))
-                columnString += "Phone";
-            else if (isColumnPhone() && !columnString.equals(""))
-                columnString += ",Phone";
+        if(isSelectAllColumns()) return "grpAll";
 
-            if (isColumnEmail() && columnString.equals(""))
-                columnString += "Email";
-            else if (isColumnEmail() && !columnString.equals(""))
-                columnString += ",Email";
-
-            if (isColumnMoveDate() && columnString.equals(""))
-                columnString += "MoveDate";
-            else if (isColumnMoveDate() && !columnString.equals(""))
-                columnString += ",MoveDate";
-
-            if (isColumnDateOfDeath() && columnString.equals(""))
-                columnString += "DateOfDeath";
-            else if (isColumnDateOfDeath() && !columnString.equals(""))
-                columnString += ",DateOfDeath";
-
-            if (isColumnDateOfBirth() && columnString.equals(""))
-                columnString += "DateOfBirth";
-            else if (isColumnDateOfBirth() && !columnString.equals(""))
-                columnString += ",DateOfBirth";
-        }
-        return columnString;
+        List<String> columns = new ArrayList<>();
+        if (isColumnPreviousAddress()) columns.add("PreviousAddress");
+        if (isColumnPhone()) columns.add("Phone");
+        if (isColumnEmail()) columns.add("Email");
+        if (isColumnMoveDate()) columns.add("MoveDate");
+        if (isColumnDateOfDeath()) columns.add("DateOfDeath");
+        if (isColumnDateOfBirth()) columns.add("DateOfBirth");
+        return String.join(",", columns);
     }
 
     public void setColumns(String columns) {

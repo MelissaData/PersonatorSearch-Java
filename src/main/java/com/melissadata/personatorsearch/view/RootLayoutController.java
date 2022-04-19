@@ -1,9 +1,9 @@
-package melissadata.personatorsearch.view;
+package com.melissadata.personatorsearch.view;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import melissadata.personatorsearch.Main;
+import com.melissadata.personatorsearch.Main;
 
 public class RootLayoutController {
     // Reference to the main application

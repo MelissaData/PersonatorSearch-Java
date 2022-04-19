@@ -1,4 +1,4 @@
-package melissadata.personatorsearch.view;
+package com.melissadata.personatorsearch.view;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -9,9 +9,9 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import melissadata.personatorsearch.model.PersonatorSearchTransaction;
-import melissadata.personatorsearch.model.PersonatorSearchOptions;
-import melissadata.personatorsearch.Main;
+import com.melissadata.personatorsearch.model.PersonatorSearchTransaction;
+import com.melissadata.personatorsearch.model.PersonatorSearchOptions;
+import com.melissadata.personatorsearch.Main;
 
 public class PersonatorSearchController  {
 
